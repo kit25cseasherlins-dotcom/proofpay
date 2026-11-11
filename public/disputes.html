@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dispute Defender</title>
+<style>
+  :root { --bg:#f6f7fb; --card:#fff; --ink:#1c2333; --muted:#6b7385; --brand:#2563eb; --ok:#15803d; --warn:#b45309; --bad:#b91c1c; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: system-ui, sans-serif; background:var(--bg); color:var(--ink); }
+  main { max-width: 900px; margin: 0 auto; padding: 24px; }
+  h1 { margin: 0 0 4px; }
+  .sub { color: var(--muted); margin: 0 0 16px; }
+  .card { background: var(--card); border-radius: 12px; padding: 20px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+  .row { display:flex; gap:12px; flex-wrap:wrap; align-items:center; justify-content:space-between; }
+  .muted { color: var(--muted); font-size: 14px; }
+  input, select, textarea, button { font: inherit; padding: 10px 12px; border-radius: 8px; border: 1px solid #d5d9e3; }
+  textarea { width: 100%; resize: vertical; }
+  button { background: var(--brand); color:#fff; border:0; cursor:pointer; }
+  button.ghost { background:#fff; color:var(--brand); border:1px solid var(--brand); }
+  button.danger { background: var(--bad); }
+  button:disabled { opacity:.5; cursor:not-allowed; }
+  .badge { padding: 3px 10px; border-radius: 99px; font-size: 12px; font-weight: 600; background:#e5e7eb; }
+  .FIGHT { background:#dcfce7; color:var(--ok); }
+  .ACCEPT { background:#fee2e2; color:var(--bad); }
+  .NEED_MORE_PROOF { background:#fef3c7; color:var(--warn); }
+  .grid { display:grid; grid-template-columns: 140px 1fr; gap:10px; margin: 12px 0; }
+  .pack { border-top:1px solid #eceef4; margin-top:16px; padding-top:16px; }
+  .pack h4 { margin: 14px 0 6px; }
+  .pack ul { margin: 0; padding-left: 20px; }
+  .actions { display:flex; gap:10px; margin-top:14px; flex-wrap:wrap; }
+  #banner { display:none; padding:12px 16px; border-radius:8px; margin-bottom:16px; background:#dcfce7; color:var(--ok); }
+  #banner.err { background:#fee2e2; color:var(--bad); }
+  a { color: var(--brand); }
+</style>
+</head>
+<body>
+<main>
+  <h1>Dispute Defender</h1>
+  <p class="sub">AI drafts the evidence. You approve. <a href="/">Back to bills</a></p>
+  <div id="banner"></div>
+  <p><button id="refresh" class="ghost">Refresh</button></p>
+  <div id="list"></div>
+</main>
+
+<script>
+const $ = (s) => document.querySelector(s);
+
+function el(tag, attrs = {}, ...kids) {
+  const n = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) {
+    if (k === 'class') n.className = v;
+    else if (k === 'text') n.textContent = v;
+    else if (k === 'value') n.value = v;
+    else if (k.startsWith('on')) n.addEventListener(k.slice(2), v);
+    else n.setAttribute(k, v);
+  }
+  for (const kid of kids) if (kid) n.append(kid);
+  return n;
+}
+
+function banner(text, isError) {
+  const b = $('#banner');
+  b.textContent = text;
+  b.className = isError ? 'err' : '';
+  b.style.display = 'block';
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+const REASONS = { MERCHANDISE_OR_SERVICE_NOT_RECEIVED: 'Item not received' };
+const label = (s) => REASONS[s] || String(s || '').replaceAll('_', ' ').toLowerCase();
+
+async function post(url, body) {
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  const data = await res.json().catch(() => ({}));
+  return { ok: res.ok, data };
+}
+
+function list(items) {
+  return el('ul', {}, ...items.map((t) => el('li', { text: t })));
+}
+
+function renderPack(d) {
+  const p = d.pack;
+  const canEvidence = d.actions.includes('provide_evidence');
+  const canAccept = d.actions.includes('accept_claim');
+  const notesBox = el('textarea', { rows: 5, value: (p.evidence_points || []).join('\n') });
+
+  const box = el('div', { class: 'pack' },
+    el('div', { class: 'row' },
+      el('strong', { text: 'AI recommendation' }),
+      el('span', { class: 'badge ' + p.recommendation, text: p.recommendation.replaceAll('_', ' ') }),
+    ),
+    el('p', { class: 'muted', text: 'Confidence: ' + p.confidence }),
+    el('p', { text: p.reasoning }),
+  );
+  if (p.guardrail) box.append(el('p', { class: 'badge NEED_MORE_PROOF', text: p.guardrail }));
+  if ((p.evidence_points || []).length) box.append(el('h4', { text: 'Evidence from your records' }), list(p.evidence_points));
+  if ((p.missing_proof || []).length) box.append(el('h4', { text: 'Still missing' }), list(p.missing_proof));
+
+  box.append(
+    el('h4', { text: 'Reply to buyer (English)' }),
+    el('textarea', { rows: 3, readonly: 'readonly', value: p.reply_to_buyer_en || '' }),
+    el('h4', { text: 'Reply to buyer (Tamil)' }),
+    el('textarea', { rows: 3, readonly: 'readonly', value: p.reply_to_buyer_ta || '' }),
+    el('h4', { text: 'Notes that will be sent to PayPal (you can edit)' }),
+    notesBox,
+  );
+
+  if (d.resolution) {
+    box.append(el('p', { class: 'badge FIGHT', text: 'Done: ' + d.resolution.action.toLowerCase() + ' at ' + new Date(d.resolution.at).toLocaleString() }));
+    return box;
+  }
+
+  const actions = el('div', { class: 'actions' });
+  if (canEvidence) {
+    actions.append(el('button', {
+      text: 'Approve: send evidence to PayPal',
+      onclick: async (e) => {
+        e.target.disabled = true;
+        const r = await post(`/api/disputes/${encodeURIComponent(d.id)}/approve`, { action: 'EVIDENCE', notes: notesBox.value });
+        if (!r.ok) { e.target.disabled = false; return banner(r.data.error || 'Something went wrong', true); }
+        banner('Evidence sent to PayPal');
+        load();
+      },
+    }));
+  }
+  if (canAccept) {
+    actions.append(el('button', {
+      class: 'danger',
+      text: 'Accept claim (refund the buyer)',
+      onclick: async (e) => {
+        if (!confirm('This closes the dispute in the buyer\'s favor and refunds the buyer. Continue?')) return;
+        e.target.disabled = true;
+        const r = await post(`/api/disputes/${encodeURIComponent(d.id)}/approve`, { action: 'ACCEPT', notes: notesBox.value });
+        if (!r.ok) { e.target.disabled = false; return banner(r.data.error || 'Something went wrong', true); }
+        banner('Claim accepted. The buyer will be refunded.');
+        load();
+      },
+    }));
+  }
+  if (!canEvidence && !canAccept) actions.append(el('span', { class: 'muted', text: 'PayPal is waiting for the other party. No action available right now.' }));
+  box.append(actions);
+  return box;
+}
+
+function renderCard(d) {
+  const n = d.sellerNotes || {};
+  const carrier = el('select', {}, ...['FEDEX', 'UPS', 'USPS'].map((c) => {
+    const o = el('option', { value: c, text: c });
+    if (n.carrier === c) o.selected = true;
+    return o;
+  }));
+  const tracking = el('input', { placeholder: 'Tracking number', value: n.trackingNumber || '' });
+  const delivery = el('textarea', { rows: 2, placeholder: 'Delivery note: what happened', value: n.deliveryNote || '' });
+
+  const draftBtn = el('button', {
+    text: d.pack ? 'Re-draft with AI' : 'Draft with AI',
+    onclick: async (e) => {
+      e.target.disabled = true;
+      e.target.textContent = 'Drafting...';
+      const r = await post(`/api/disputes/${encodeURIComponent(d.id)}/draft`, {
+        carrier: carrier.value,
+        trackingNumber: tracking.value,
+        deliveryNote: delivery.value,
+      });
+      if (!r.ok) {
+        e.target.disabled = false;
+        e.target.textContent = 'Draft with AI';
+        return banner(r.data.error || 'Could not draft', true);
+      }
+      load();
+    },
+  });
+
+  const billText = d.bill
+    ? `Matched bill: ${d.bill.customer}, $${Number(d.bill.amount).toFixed(2)}${d.bill.note ? ' (' + d.bill.note + ')' : ''}, matched by ${d.bill.matchedBy}`
+    : 'No matching bill found in this app. The AI will say so and use only your notes.';
+
+  const card = el('div', { class: 'card' },
+    el('div', { class: 'row' },
+      el('strong', { text: d.id }),
+      el('span', { class: 'badge', text: d.status.replaceAll('_', ' ') }),
+    ),
+    el('p', { class: 'muted', text: `${label(d.reason)}  |  $${d.amount.value} ${d.amount.currency_code}  |  stage: ${d.stage}` + (d.dueDate ? '  |  respond by ' + new Date(d.dueDate).toLocaleDateString() : '') }),
+    el('p', { class: 'muted', text: billText }),
+    el('h4', { text: 'Your delivery proof' }),
+    el('div', { class: 'grid' }, el('span', { text: 'Courier' }), carrier, el('span', { text: 'Tracking no.' }), tracking, el('span', { text: 'Delivery note' }), delivery),
+    draftBtn,
+  );
+  if (d.pack) card.append(renderPack(d));
+  return card;
+}
+
+async function load() {
+  const res = await fetch('/api/disputes');
+  const data = await res.json();
+  const box = $('#list');
+  box.replaceChildren();
+  if (!res.ok) return banner(data.error || 'Could not load disputes', true);
+  if (!data.length) box.append(el('div', { class: 'card muted', text: 'No disputes yet.' }));
+  for (const d of data) box.append(renderCard(d));
+}
+
+$('#refresh').addEventListener('click', load);
+load();
+</script>
+</body>
+</html>

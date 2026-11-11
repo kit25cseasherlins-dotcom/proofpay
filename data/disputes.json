@@ -1,0 +1,53 @@
+{
+  "PP-R-FUD-10196938": {
+    "sellerNotes": {
+      "carrier": "FEDEX",
+      "trackingNumber": "",
+      "deliveryNote": ""
+    },
+    "pack": {
+      "recommendation": "NEED_MORE_PROOF",
+      "confidence": "high",
+      "reasoning": "The buyer claims the merchandise was not received, but the provided seller notes only list FedEx without a tracking number or proof of delivery. Additionally, there is no bill documentation attached to verify the transaction details. The seller needs to collect a valid tracking number or delivery proof before deciding to fight the claim.",
+      "evidence_points": [
+        "Carrier is listed as FEDEX from seller_notes"
+      ],
+      "missing_proof": [
+        "FedEx tracking number",
+        "Proof of delivery or signed receipt",
+        "Paid bill or invoice documentation"
+      ],
+      "reply_to_buyer_en": "Hello, we have received your inquiry regarding your order. We are currently checking the shipment details with FedEx and will update you shortly.",
+      "reply_to_buyer_ta": "வணக்கம், உங்கள் ஆர்டர் தொடர்பான விசாரணையை நாங்கள் பெற்றுள்ளோம். நாங்கள் தற்போது FedEx உடன் டெலிவரி விவரங்களைச் சரிபார்த்து விரைவில் உங்களுக்குத் தெரிவிக்கிறோம்."
+    },
+    "resolution": {
+      "action": "ACCEPT",
+      "at": "2026-11-11T10:24:57.729Z"
+    }
+  },
+  "PP-R-CDE-10198843": {
+    "sellerNotes": {
+      "carrier": "FEDEX",
+      "trackingNumber": "TEST1234567890",
+      "deliveryNote": "Parcel handed to the courier on Nov 10"
+    },
+    "pack": {
+      "recommendation": "FIGHT",
+      "confidence": "high",
+      "reasoning": "The bill status is PAID, and there is strong proof of fulfillment consisting of a courier name (FEDEX) and a tracking number (TEST1234567890). As per the rules, having strong proof along with a paid bill warrants fighting the dispute.",
+      "evidence_points": [
+        "Bill status is PAID for $12.50 (bill)",
+        "Courier name is FEDEX (seller_notes)",
+        "Tracking number is TEST1234567890 (seller_notes)",
+        "Parcel was handed to courier on Nov 10 (seller_notes)"
+      ],
+      "missing_proof": [],
+      "reply_to_buyer_en": "Hello Ravi, your order for Rice and dal was shipped via FEDEX with tracking number TEST1234567890. Please check the tracking information for updates on your package.",
+      "reply_to_buyer_ta": "வணக்கம் ரவி, உங்களுடைய அரிசி மற்றும் பருப்பு ஆர்டர் FEDEX மூலம் டிராக்கிங் எண் TEST1234567890 உடன் அனுப்பப்பட்டது. உங்கள் பார்சல் விவரங்களை அறிய டிராக்கிங் எண்ணைச் சரிபார்க்கவும்."
+    },
+    "resolution": {
+      "action": "EVIDENCE",
+      "at": "2026-11-11T10:49:26.797Z"
+    }
+  }
+}
