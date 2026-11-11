@@ -2,7 +2,7 @@
 
 Built for the **Build What's Next with PayPal and AI** hackathon.
 
-**Demo video:*
+**Demo video:**
 
 Small sellers lose money when a customer opens a PayPal "item not received" dispute. The proof is scattered across bills and chats, and writing a good reply takes time they do not have. ProofPay reads the dispute from PayPal, drafts an evidence pack and a buyer reply with AI, and sends it to PayPal only after the seller approves.
 
